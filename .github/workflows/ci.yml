@@ -1,0 +1,40 @@
+name: CI
+
+# Lightweight CI: just confirm every JS file parses. No build tools, no deps.
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax-check:
+    name: JS syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check every JS file parses as an ES module
+        shell: bash
+        run: |
+          # NOTE: pipe each file through stdin with --input-type=module.
+          # Plain `node --check <file>` does NOT reliably fail on bad ESM
+          # syntax here (module auto-detection swallows the error), so the
+          # stdin form is used to make this check actually meaningful.
+          fail=0
+          while IFS= read -r f; do
+            if node --check --input-type=module < "$f"; then
+              echo "OK   $f"
+            else
+              echo "FAIL $f"
+              fail=1
+            fi
+          done < <(find . -name '*.js' -not -path './.git/*' -not -path '*/node_modules/*' | sort)
+
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::One or more JS files failed the syntax check"
+            exit 1
+          fi
+          echo "All JS files passed the syntax check."
