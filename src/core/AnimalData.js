@@ -32,6 +32,10 @@ export const ANIMALS = {
     abilityId: 'superLeapShot',
     abilityName: 'Super Leap Shot',
     abilityCooldown: 8, // seconds
+    // Leap tuning lives here so the ability trigger, the hop animation and the
+    // visual effect all read ONE value and can never drift out of sync.
+    leapDuration: 0.55, // seconds the hop (and its ring effect) lasts
+    leapPeak: 26, // max heightZ reached at the top of the hop
   },
 
   crocodile: {

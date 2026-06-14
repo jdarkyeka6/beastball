@@ -169,6 +169,31 @@ independent):
 
 ---
 
+## ✅ Tests & CI
+
+The simulation core is pure and DOM-free, so it is tested with **Node's built-in
+test runner — no dependencies, no build step**:
+
+```bash
+node --test          # runs tests/*.test.mjs
+```
+
+`tests/physics.test.mjs` locks in the behaviour that matters most when balancing:
+friction is **frame-rate independent** (one big step == two half steps), goal
+detection (on-target vs. off-target), wall bounces, open goal mouths, the
+player↔ball push (tight control when still, dribble when running), player
+separation and field clamping.
+
+**CI** (`.github/workflows/ci.yml`) runs on every push and pull request and does
+two things, using Node only:
+
+1. **Syntax-checks every `.js` file** as an ES module. (It pipes each file
+   through `node --check --input-type=module`; plain `node --check <file>` does
+   *not* reliably fail on bad ESM syntax under Node's module auto-detection.)
+2. **Runs the unit tests** (`node --test`).
+
+---
+
 ## 🔮 Future 3D Upgrade Plan
 
 The whole point of the flat-world architecture is that going 3D is a

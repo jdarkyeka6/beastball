@@ -106,9 +106,12 @@ export class Physics {
     ball.x = player.x + nx * minDist;
     ball.y = player.y + ny * minDist;
 
-    // Impart velocity.
+    // Impart velocity. The push is dominated by the player's OWN speed, with
+    // only a tiny base, so a (near-)stationary player barely nudges the ball -
+    // it rests at their feet for tighter close control, while running carries
+    // the ball along as a dribble.
     const playerSpeed = Math.hypot(player.vx, player.vy);
-    const push = 70 + playerSpeed * 1.15 + player.control * 8;
+    const push = 10 + playerSpeed * 1.25 + player.control * 4;
     // Keep some of the ball's prior momentum so a fast ball isn't fully killed.
     ball.vx = ball.vx * 0.3 + nx * push;
     ball.vy = ball.vy * 0.3 + ny * push;

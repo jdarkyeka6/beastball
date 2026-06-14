@@ -158,7 +158,10 @@ export class Renderer2D {
     const spotX = lineX + dir * p.penaltySpotDist;
     const boxEdgeX = lineX + dir * p.penaltyBoxDepth;
     ctx.beginPath();
-    const a = Math.acos((boxEdgeX - spotX) / 72 * dir) || 0.9;
+    // Clamp the acos input to [-1, 1] so the arc stays robust if the pitch /
+    // box / spot dimensions are ever retuned (acos(>1) would be NaN).
+    const arcArg = Math.max(-1, Math.min(1, ((boxEdgeX - spotX) / 72) * dir));
+    const a = Math.acos(arcArg);
     ctx.arc(spotX, p.centerY, 72, dir > 0 ? -a : Math.PI - a, dir > 0 ? a : Math.PI + a);
     ctx.stroke();
   }

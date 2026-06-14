@@ -69,6 +69,11 @@ export class Player {
     this.dashVy = 0;
     this.slowTimer = 0; // spider web slow: seconds remaining
     this.leapTimer = 0; // kangaroo leap: seconds of hop animation remaining
+
+    // Leap shape (single source of truth from AnimalData; harmless defaults for
+    // non-leaping animals since their leapTimer never starts).
+    this.leapDuration = animal.leapDuration ?? 0.55;
+    this.leapPeak = animal.leapPeak ?? 26;
   }
 
   /** Movement speed in world-units/sec, accounting for the web slow debuff. */
@@ -95,17 +100,21 @@ export class Player {
 
     if (this.leapTimer > 0) {
       this.leapTimer = Math.max(0, this.leapTimer - dt);
-      // Parabolic hop: 0 -> peak -> 0 across the leap duration.
-      const LEAP_DURATION = 0.55;
-      const LEAP_PEAK = 26;
-      const progress = 1 - this.leapTimer / LEAP_DURATION;
-      this.heightZ = Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI) * LEAP_PEAK;
+      // Parabolic hop: 0 -> peak -> 0 across the leap duration. Reads the same
+      // duration/peak the ability used to start the timer, so they can't desync.
+      const progress = 1 - this.leapTimer / this.leapDuration;
+      this.heightZ = Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI) * this.leapPeak;
     } else {
       this.heightZ = 0;
     }
   }
 
-  /** Snap back to a position and clear motion/effects (used on kickoff/reset). */
+  /**
+   * Snap back to a position and clear in-progress motion/effects. Used for BOTH
+   * kickoff and post-goal resets, so it deliberately does NOT touch the ability
+   * cooldown - a special you just spent shouldn't refill because a goal was
+   * scored elsewhere. Fresh-match cooldown resets are handled in Game._kickoff.
+   */
   resetTo(x, y) {
     this.x = x;
     this.y = y;
@@ -115,6 +124,10 @@ export class Player {
     this.dashTimer = 0;
     this.slowTimer = 0;
     this.leapTimer = 0;
+  }
+
+  /** Make the ability immediately available again (used only on a fresh match). */
+  resetCooldown() {
     this.abilityTimer = 0;
   }
 }

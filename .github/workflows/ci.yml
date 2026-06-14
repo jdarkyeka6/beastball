@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  syntax-check:
-    name: JS syntax check
+  checks:
+    name: Checks & tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,3 +38,8 @@ jobs:
             exit 1
           fi
           echo "All JS files passed the syntax check."
+
+      - name: Run unit tests
+        # Node's built-in runner exercises the pure simulation core (Physics,
+        # goal detection, collisions, friction) - no dependencies, no jsdom.
+        run: node --test

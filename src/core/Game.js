@@ -141,6 +141,9 @@ export class Game {
       this.teamB.score = 0;
       this.timeLeft = MATCH_DURATION;
       this.result = null;
+      // Abilities start a fresh match ready; mid-match (post-goal) cooldowns
+      // are intentionally preserved (see Player.resetTo).
+      for (const p of this.players) p.resetCooldown();
     }
     this.resetPositions();
     this.controlledId = this.teamA.outfield[1]?.id ?? this.teamA.players[0].id;
@@ -370,8 +373,10 @@ export class Game {
 
   // Kangaroo: leap + (if near the ball) a powerful shot toward the cursor.
   _abilityLeapShot(player) {
-    player.leapTimer = 0.55; // hop animation (also drives heightZ)
-    this._addEffect({ type: 'leapRing', x: player.x, y: player.y, life: 0.45, max: 0.45 });
+    // Drive the hop AND its ring from the one shared duration so the ring no
+    // longer disappears before the kangaroo lands.
+    player.leapTimer = player.leapDuration;
+    this._addEffect({ type: 'leapRing', x: player.x, y: player.y, life: player.leapDuration, max: player.leapDuration });
     if (this._canKick(player)) {
       const speed = (SHOT_BASE + player.power * SHOT_PER_POWER) * LEAP_SHOT_MULT;
       this._kickBallToward(player, this.aim.x, this.aim.y, speed);
@@ -537,7 +542,9 @@ export class Game {
     const distToBall = Math.hypot(this.ball.x - p.x, this.ball.y - p.y);
     if (ballOnOurSide && distToBall < 150) {
       targetX = lineX + team.attackingDir * Math.min(60, 150 - distToBall);
-      targetY = this.ball.y;
+      // Smother toward the ball BUT stay tied to the goal mouth (+ a little), so
+      // dragging the ball wide can't lure the keeper away and leave an open net.
+      targetY = Math.max(this.pitch.goalTop - 14, Math.min(this.pitch.goalBottom + 14, this.ball.y));
       if (this._canKick(p)) {
         // Clear toward the opposite half / centre.
         this.ball.kick(team.attackingDir, this.ball.y > this.pitch.centerY ? -0.4 : 0.4, 560, p.id);
