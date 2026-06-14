@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeastBall — Animal Football Chaos</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Everything lives inside one stage so overlays line up over the canvas. -->
+    <div id="game-root">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- ============ In-match HUD ============ -->
+      <div id="hud" class="hidden">
+        <div class="hud-top">
+          <div class="score-chip team-a">
+            <span class="dot"></span>
+            <span class="chip-name">Blue Beasts</span>
+            <span id="score-a" class="chip-score">0</span>
+          </div>
+          <div id="timer" class="timer">2:00</div>
+          <div class="score-chip team-b">
+            <span id="score-b" class="chip-score">0</span>
+            <span class="chip-name">Red Fangs</span>
+            <span class="dot"></span>
+          </div>
+        </div>
+
+        <div class="hud-bottom">
+          <div id="player-card" class="player-card">
+            <div id="card-emoji" class="card-emoji">🦘</div>
+            <div class="card-info">
+              <div id="card-name" class="card-name">Kangaroo · Striker</div>
+              <div id="card-ability" class="card-ability">Super Leap Shot</div>
+              <div class="cooldown">
+                <div class="cooldown-bar"><div id="card-cooldown-fill" class="cooldown-fill"></div></div>
+                <span id="card-cooldown-text" class="cooldown-text">READY · Space</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="controls-hint">
+            <span><b>WASD</b> Move</span>
+            <span><b>Mouse</b> Aim</span>
+            <span><b>L-Click</b> Shoot</span>
+            <span><b>R-Click</b> Pass</span>
+            <span><b>Space</b> Ability</span>
+            <span><b>Q</b> Switch</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ GOAL! banner ============ -->
+      <div id="goal-banner" class="hidden">GOAL!</div>
+
+      <!-- ============ Start menu ============ -->
+      <div id="menu" class="overlay">
+        <div class="panel">
+          <h1 class="title">BeastBall</h1>
+          <p class="subtitle">Animal football chaos</p>
+
+          <div class="teams-preview">
+            <div class="team-col">
+              <h3 class="team-a-text">Blue Beasts</h3>
+              <p>🦘 Kangaroo — <i>Super Leap Shot</i></p>
+              <p>🐊 Crocodile — <i>Midfield wall</i></p>
+              <p>🧤 Keeper</p>
+            </div>
+            <div class="vs">VS</div>
+            <div class="team-col">
+              <h3 class="team-b-text">Red Fangs</h3>
+              <p>🐻 Bear — <i>Charge Tackle</i></p>
+              <p>🕷️ Spider — <i>Web Pass</i></p>
+              <p>🧤 Keeper</p>
+            </div>
+          </div>
+
+          <button id="start-btn" class="btn primary">Start Match</button>
+
+          <div class="menu-controls">
+            <span><b>WASD</b> move</span>
+            <span><b>Mouse</b> aim</span>
+            <span><b>Left-click</b> shoot</span>
+            <span><b>Right-click</b> pass</span>
+            <span><b>Space</b> ability</span>
+            <span><b>Q</b> switch player</span>
+            <span><b>R</b> restart (after match)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ End-of-match screen ============ -->
+      <div id="end" class="overlay hidden">
+        <div class="panel">
+          <h1 id="end-result" class="title">Draw!</h1>
+          <p id="end-score" class="end-score">0 – 0</p>
+          <button id="restart-btn" class="btn primary">Play Again</button>
+          <p class="hint">…or press <b>R</b></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ES modules keep the architecture clean. Served over http(s) (see README). -->
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
