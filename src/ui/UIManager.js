@@ -11,9 +11,10 @@
 // ---------------------------------------------------------------------------
 
 export class UIManager {
-  constructor({ onStart, onRestart }) {
+  constructor({ onStart, onRestart, onToggleMute }) {
     this.onStart = onStart;
     this.onRestart = onRestart;
+    this.onToggleMute = onToggleMute;
 
     // Grab the elements declared in index.html.
     this.el = {
@@ -38,10 +39,15 @@ export class UIManager {
 
       startBtn: document.getElementById('start-btn'),
       restartBtn: document.getElementById('restart-btn'),
+      muteBtn: document.getElementById('mute-btn'),
     };
 
     this.el.startBtn.addEventListener('click', () => this.onStart());
     this.el.restartBtn.addEventListener('click', () => this.onRestart());
+    this.el.muteBtn.addEventListener('click', () => {
+      const muted = this.onToggleMute?.();
+      this.el.muteBtn.textContent = muted ? '🔇' : '🔊';
+    });
 
     this._phase = null; // track last phase to avoid redundant DOM toggling
   }

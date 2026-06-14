@@ -50,6 +50,7 @@ Then open the printed URL and click **Start Match**.
 | **Space**        | Use the selected animal's ability       |
 | **Q**            | Switch which player you control         |
 | **R**            | Restart (after the match ends)          |
+| **🔊 button**     | Toggle sound (top-right of the stage)   |
 
 You only ever control **one Team A player** at a time; the rest (and all of
 Team B) are run by simple AI.
@@ -90,19 +91,31 @@ renderer is handed a read-only snapshot and draws it:
 InputManager ──▶ Game (core simulation) ──▶ getState() ──▶ Renderer.render(state)
    (raw keys/mouse)      (pitch, ball,                          (Renderer2D now,
                           players, AI, physics)                  Renderer3D later)
-                                   │
-                                   └─▶ UIManager (DOM: menu / HUD / end screen)
+                              │    │
+                              │    └─▶ getState() ─▶ UIManager (menu / HUD / end)
+                              │
+                              └─▶ EventBus.emit(goal, kick, ability, …)
+                                       └─▶ AudioManager (Web Audio) + any future
+                                           subscriber (analytics, replays, …)
 ```
 
-`main.js` is the only file that knows about all the pieces; it owns the loop.
+There are **two boundaries** out of core, both one-way: a per-frame read-only
+`getState()` snapshot (for drawing/UI), and a fire-and-forget **event bus** for
+discrete moments (goals, kicks, abilities). Core imports neither a renderer nor
+the audio system — it just emits. `main.js` is the only file that knows about
+all the pieces; it owns the loop and wires subscribers to the bus.
 
 ### File structure
 
 ```
 beastball/
-├── index.html                     # Stage: canvas + HUD/menu/end overlays
+├── index.html                     # Stage: canvas + HUD/menu/end overlays + mute
 ├── style.css                      # Chrome around the canvas (HUD, menus)
 ├── README.md
+├── tests/                         # Node built-in test runner (node --test)
+│   ├── physics.test.mjs           #   Friction, goals, collisions, geometry
+│   ├── eventbus.test.mjs          #   Pub/sub bus
+│   └── game-events.test.mjs       #   Game emits the right gameplay events
 └── src/
     ├── main.js                    # Composition root + requestAnimationFrame loop
     ├── core/                      # === GAME LOGIC (renderer-agnostic) ===
@@ -112,10 +125,13 @@ beastball/
     │   ├── Team.js                #   Team grouping + score + attack direction
     │   ├── AnimalData.js          #   All animal stats/abilities (single source)
     │   ├── InputManager.js        #   Keyboard + mouse polling (logical only)
+    │   ├── EventBus.js            #   Tiny pub/sub + GameEvents names (no DOM)
     │   └── Physics.js             #   Friction, collisions, goal detection
     ├── renderers/                 # === RENDERING (swappable) ===
     │   ├── Renderer2D.js          #   Active Canvas 2D renderer
     │   └── Renderer3DStub.js      #   Placeholder w/ the same interface (Three.js TODO)
+    ├── audio/                     # === AUDIO (event-bus subscriber) ===
+    │   └── AudioManager.js        #   Procedural Web Audio SFX (no asset files)
     └── ui/
         └── UIManager.js           #   DOM overlays: menu, HUD, GOAL!, end screen
 ```
@@ -194,6 +210,24 @@ two things, using Node only:
 
 ---
 
+## 🔊 Audio & the event bus
+
+Discrete gameplay moments are announced on a tiny **`EventBus`** (`src/core/EventBus.js`):
+`match:start`, `match:end`, `goal`, `kick` (shot/pass), `ability`, `tackle`,
+`save`, `switch`. The core only **emits** — it has no idea anyone is listening.
+
+**`AudioManager`** (`src/audio/AudioManager.js`) is just a subscriber that turns
+those events into sound. Every effect is **synthesised at runtime with the Web
+Audio API** (oscillators + filtered noise) — kick thuds, a goal fanfare + crowd
+swell, per-animal ability cues, a referee whistle, etc. — so the repo ships
+**zero audio files**. Browsers block sound before a user gesture, so the
+`AudioContext` is unlocked on the Start/Play-Again click; the 🔊 button mutes.
+
+This is the extension point: a renderer, analytics, haptics or a replay recorder
+can subscribe to the same bus without touching gameplay code.
+
+---
+
 ## 🔮 Future 3D Upgrade Plan
 
 The whole point of the flat-world architecture is that going 3D is a
@@ -262,7 +296,7 @@ so adding rarity tiers and a roster/inventory is additive, not a refactor.
   shooting/clearing, vertical goalkeepers. It's built for fun, not for being
   unbeatable.
 - **No persistence**: no saving, currency, accounts or packs yet.
-- **No audio**.
+- **Audio is procedural** (synthesised Web Audio, no recorded SFX/music yet).
 - **Single match type only** (2-minute 3v3 vs AI). No tournaments/seasons.
 - **Desktop / mouse + keyboard only** — no touch controls yet.
 - Physics is arcade-style (flat 2D collisions); `heightZ` is visual only.
@@ -272,7 +306,7 @@ so adding rarity tiers and a roster/inventory is additive, not a refactor.
 
 ## 🛣️ What to build next (recommended order)
 
-1. **Audio** — kick / goal / whistle SFX (instant "juice", very low effort).
+1. ~~**Audio**~~ ✅ done — procedural Web Audio SFX driven by the event bus.
 2. **Smarter AI** — marking, passing lanes, better keeper positioning.
 3. **Crocodile's Fear Zone** ability + goalkeeper specials.
 4. **Collection meta** — coins, a roster screen, animal rarities (see above).

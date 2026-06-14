@@ -22,15 +22,30 @@ import { Renderer2D } from './renderers/Renderer2D.js';
 // `new Renderer2D(...)` call - nothing in core/ needs to change.
 // import { Renderer3DStub } from './renderers/Renderer3DStub.js';
 import { UIManager } from './ui/UIManager.js';
+import { AudioManager } from './audio/AudioManager.js';
 
 const canvas = document.getElementById('game-canvas');
 
 const input = new InputManager();
 const game = new Game(input);
 const renderer = new Renderer2D(canvas);
+
+// Audio is just another subscriber on the game's event bus - core stays unaware
+// of it. Browsers require a user gesture before sound can play, so we unlock()
+// the AudioContext from the Start / Play-Again button clicks.
+const audio = new AudioManager();
+audio.connect(game.events);
+
 const ui = new UIManager({
-  onStart: () => game.startMatch(),
-  onRestart: () => game.restart(),
+  onStart: () => {
+    audio.unlock();
+    game.startMatch();
+  },
+  onRestart: () => {
+    audio.unlock();
+    game.restart();
+  },
+  onToggleMute: () => audio.toggleMute(),
 });
 
 // Make sure the very first frame is drawn (menu in the background).

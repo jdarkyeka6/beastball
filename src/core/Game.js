@@ -2,6 +2,7 @@ import { Ball } from './Ball.js';
 import { Team } from './Team.js';
 import { Player } from './Player.js';
 import { Physics } from './Physics.js';
+import { EventBus, GameEvents } from './EventBus.js';
 
 // ---------------------------------------------------------------------------
 // Game.js - the heart of BeastBall.
@@ -105,6 +106,10 @@ export class Game {
     // Transient visual effects (web lines, kick rings, goal flash). Core owns
     // their lifetimes; the renderer just draws whatever is in this list.
     this.effects = [];
+
+    // Semantic event bus. Core EMITS gameplay events here; renderers / audio /
+    // UI subscribe via main.js. Core never knows who (if anyone) is listening.
+    this.events = new EventBus();
   }
 
   // -------------------------------------------------------------------------
@@ -150,6 +155,7 @@ export class Game {
     this.effects.length = 0;
     this.lastGoalTeam = null;
     this.phase = 'playing';
+    this.events.emit(GameEvents.MATCH_START, {});
     // Swallow the click/keypress that triggered start so it isn't read as a shot.
     this.input.endFrame();
   }
@@ -165,6 +171,7 @@ export class Game {
     this.phase = 'goal';
     this.goalTimer = GOAL_CELEBRATION;
     this._addEffect({ type: 'flash', life: 0.5, max: 0.5 });
+    this.events.emit(GameEvents.GOAL, { teamId: scoringTeamId, x: this.ball.x, y: this.ball.y });
   }
 
   _endMatch() {
@@ -175,6 +182,7 @@ export class Game {
     else if (b > a) winner = 'B';
     this.result = { winner, a, b };
     this.phase = 'ended';
+    this.events.emit(GameEvents.MATCH_END, { result: this.result });
   }
 
   // -------------------------------------------------------------------------
@@ -296,6 +304,7 @@ export class Game {
     const idx = squad.findIndex((p) => p.id === this.controlledId);
     const next = squad[(idx + 1) % squad.length];
     this.controlledId = next.id;
+    this.events.emit(GameEvents.SWITCH, { playerId: next.id });
   }
 
   _canKick(player) {
@@ -307,6 +316,7 @@ export class Game {
     if (!this._canKick(player)) return;
     const speed = SHOT_BASE + player.power * SHOT_PER_POWER;
     this._kickBallToward(player, this.aim.x, this.aim.y, speed);
+    this.events.emit(GameEvents.KICK, { kind: 'shot', x: this.ball.x, y: this.ball.y, teamId: player.teamId });
   }
 
   _pass(player) {
@@ -315,6 +325,7 @@ export class Game {
     const target = this._bestPassTarget(player) || { x: this.aim.x, y: this.aim.y };
     const speed = PASS_BASE + player.power * PASS_PER_POWER;
     this._kickBallToward(player, target.x, target.y, speed);
+    this.events.emit(GameEvents.KICK, { kind: 'pass', x: this.ball.x, y: this.ball.y, teamId: player.teamId });
   }
 
   _kickBallToward(player, tx, ty, speed) {
@@ -369,6 +380,7 @@ export class Game {
         return; // no ability - don't trigger cooldown
     }
     player.abilityTimer = player.abilityCooldown;
+    this.events.emit(GameEvents.ABILITY, { abilityId: player.abilityId, teamId: player.teamId, x: player.x, y: player.y });
   }
 
   // Kangaroo: leap + (if near the ball) a powerful shot toward the cursor.
@@ -391,6 +403,7 @@ export class Game {
     player.dashVx = (dx / len) * DASH_SPEED;
     player.dashVy = (dy / len) * DASH_SPEED;
     player.dashTimer = DASH_TIME;
+    player.dashHit = false; // so the tackle sound fires at most once per charge
   }
 
   // While dashing the bear plows opponents aside and knocks the ball loose.
@@ -398,6 +411,7 @@ export class Game {
     const len = Math.hypot(dasher.dashVx, dasher.dashVy) || 1;
     const dirX = dasher.dashVx / len;
     const dirY = dasher.dashVy / len;
+    let impacted = false;
 
     for (const other of this.players) {
       if (other === dasher) continue;
@@ -409,6 +423,7 @@ export class Game {
         other.x += dirX * 16;
         other.y += dirY * 16;
         other.slowTimer = Math.max(other.slowTimer, 0.5);
+        impacted = true;
 
         // If they were on the ball, it pops loose ahead of the bear.
         if (Math.hypot(this.ball.x - other.x, this.ball.y - other.y) < other.radius + this.ball.radius + 12) {
@@ -420,6 +435,13 @@ export class Game {
     // Charging straight through the ball blasts it forward.
     if (Math.hypot(this.ball.x - dasher.x, this.ball.y - dasher.y) < dasher.radius + this.ball.radius + 6) {
       this.ball.kick(dirX, dirY, 520, dasher.id);
+      impacted = true;
+    }
+
+    // Fire the tackle event only on the first contact of this charge.
+    if (impacted && !dasher.dashHit) {
+      dasher.dashHit = true;
+      this.events.emit(GameEvents.TACKLE, { x: dasher.x, y: dasher.y });
     }
   }
 
@@ -517,6 +539,7 @@ export class Game {
           const speed = SHOT_BASE + p.power * SHOT_PER_POWER;
           this.ball.kick(goalX - this.ball.x, aimY - this.ball.y, speed, p.id);
           this._addEffect({ type: 'kickRing', x: this.ball.x, y: this.ball.y, life: 0.3, max: 0.3 });
+          this.events.emit(GameEvents.KICK, { kind: 'shot', x: this.ball.x, y: this.ball.y, teamId: p.teamId });
         }
       }
     } else {
@@ -549,6 +572,7 @@ export class Game {
         // Clear toward the opposite half / centre.
         this.ball.kick(team.attackingDir, this.ball.y > this.pitch.centerY ? -0.4 : 0.4, 560, p.id);
         this._addEffect({ type: 'kickRing', x: this.ball.x, y: this.ball.y, life: 0.3, max: 0.3 });
+        this.events.emit(GameEvents.SAVE, { x: this.ball.x, y: this.ball.y });
       }
     }
     this._moveToward(p, targetX, targetY);
